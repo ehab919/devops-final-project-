@@ -1,0 +1,5 @@
+resource "aws_api_gateway_vpc_link" "vpc_link" {
+  name        = "myapp-vpc-link"
+  description = "VPC Link to NLB"
+  target_arns = ["arn:aws:elasticloadbalancing:us-east-1:251251171133:loadbalancer/net/a7268b26f3774472e84942f60f1cc90d/45f1c9b5ccae9239"]
+}
