@@ -1,0 +1,79 @@
+name: "01-Infrastructure-Deployment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_action:
+        description: '(Plan/Apply/Destroy)'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    name: "Terraform & K8s Deploy"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./vpc
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      # 1. تهيئة التيرافورم (Hardcoded Keys)
+      - name: Terraform Init
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID: "AKIATU754T46X23DM3V2"
+          AWS_SECRET_ACCESS_KEY: "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"
+
+      # 2. خطة التيرافورم
+      - name: Terraform Plan
+        if: github.event.inputs.terraform_action == 'plan' || github.event.inputs.terraform_action == 'apply'
+        run: terraform plan
+        env:
+          AWS_ACCESS_KEY_ID: "AKIATU754T46X23DM3V2"
+          AWS_SECRET_ACCESS_KEY: "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"
+
+      # 3. تنفيذ البنية التحتية
+      - name: Terraform Apply
+        if: github.event.inputs.terraform_action == 'apply'
+        run: terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: "AKIATU754T46X23DM3V2"
+          AWS_SECRET_ACCESS_KEY: "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"
+
+      # 4. الحذف (Destroy)
+      - name: Terraform Destroy
+        if: github.event.inputs.terraform_action == 'destroy'
+        run: terraform destroy -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: "AKIATU754T46X23DM3V2"
+          AWS_SECRET_ACCESS_KEY: "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"
+
+      # --- مرحلة الـ Deploy لملفات الـ YAML (بما إنها جوه مجلد vpc) ---
+
+      - name: Update Kubeconfig
+        if: github.event.inputs.terraform_action == 'apply'
+        # تأكد من تغيير 'my-eks-cluster' للاسم الحقيقي في التيرافورم
+        run: |
+          export AWS_ACCESS_KEY_ID="AKIATU754T46X23DM3V2"
+          export AWS_SECRET_ACCESS_KEY="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"
+          aws eks update-kubeconfig --name my-eks-cluster --region us-east-1
+
+      - name: Deploy App Manifests
+        if: github.event.inputs.terraform_action == 'apply'
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f nlb.yaml
